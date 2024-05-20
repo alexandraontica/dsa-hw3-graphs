@@ -56,6 +56,14 @@ AArc AlocArc(int nr, char *dest)
         return NULL;
     }
 
+    arc->input = 0;
+    // input retine daca muchia face parte din fisierul de input
+    // de ex, daca citesc Londra-Paris, pentru muchia cu startul in Londra si 
+    // destinatia in Parit input o sa fie 1;
+    // pentru aceeasi muchie, dar adaugata in lista de adiacenta a nodului Paris,
+    // (startul in Paris si destinatia in Londra), input o sa fie 0;
+    // modific valoarea lui input in afara functiei de alocare
+
     return arc;
 }
 
@@ -104,14 +112,19 @@ void InserareRutaSf(AArc *lista, AArc ruta)
     }
 }
 
-int AdaugaRuta(FILE *fin, TGL *g)
+int AdaugaRuta(int cerinta, FILE *fin, TGL *g)
 // returneaza 1 daca ruta a fost adaugata cu succes, 0 in caz contrar
 {
     char start[20], dest[20];
     int nr;  // numar tronsoane
     fscanf(fin, "%s", start);
     fscanf(fin, "%s", dest);
-    fscanf(fin, "%d", &nr);
+
+    if (cerinta == 1) {
+        fscanf(fin, "%d", &nr);
+    } else {
+        nr = 1;
+    }
 
     int i, poz_start = -1, poz_dest = -1;
     for (i = 0; i < g->n; i++) {
@@ -154,6 +167,7 @@ int AdaugaRuta(FILE *fin, TGL *g)
     if (!ruta_dus) {
         return 0;
     }
+    ruta_dus->input = 1;
 
     // alocare ruta intors:
     AArc ruta_intors = AlocArc(nr, start);
@@ -162,7 +176,7 @@ int AdaugaRuta(FILE *fin, TGL *g)
         return 0;
     }
 
-    // populeaza vectorii cu gradele de afectare pe fiecare tronson:
+    // populeaza vectorii cu gradele de afectare de pe fiecare tronson:
     for (i = 0; i < nr; i++) {
         float procent;
         fscanf(fin, "%f", &procent);
@@ -244,10 +258,14 @@ void ModificaGradAfectare(TGL *g, int K)
                             l->modificat[j] = -1;
                         } else if (j == 0) {
                             float max = 0;
-                            if (l->modificat[j + 1] == 0) {
-                                max = l->cost[j + 1];
-                            } else if (l->modificat[j + 1] == 1) {
-                                max = l->cost[j + 1] / 2;
+
+                            // daca vectorul de costuri nu are un singur element:
+                            if (j + 1 < l->nr_costuri) {
+                                if (l->modificat[j + 1] == 0) {
+                                    max = l->cost[j + 1];
+                                } else if (l->modificat[j + 1] == 1) {
+                                    max = l->cost[j + 1] / 2;
+                                }
                             }
 
                             AArc p = g->v[i];
@@ -301,18 +319,11 @@ void Afisare1(FILE *fout, TGL *g)
     for (i = 0; i < g->n; i++) {
         AArc l = g->v[i];
         while (l) {
-            int ok = 0;  // verific daca am afisat deja arcul curent
-            int j;
-            for (j = 0; j < i; j++) {
-                if (!strcmp(g->src[j], l->destinatie)) {
-                    ok = 1;
-                    break;
-                }
-            }
-
-            if (!ok) {
-                fprintf(fout, "%s %s %d ", g->src[i], l->destinatie, l->nr_costuri);
-
+            if (l->input) {
+                fprintf(fout, "%s %s ", g->src[i], l->destinatie);
+                fprintf(fout, "%d ", l->nr_costuri);
+                
+                int j;
                 for (j = 0; j < l->nr_costuri; j++) {
                     fprintf(fout, "%.2f ", l->cost[j]);
                 }
@@ -331,30 +342,79 @@ void PastreazaRute(FILE *fout, TGL *g, int L)
     for (i = 0; i < g->n; i++) {
         AArc l = g->v[i];
         while (l) {
-            int ok = 0;  // verific daca am afisat deja arcul curent
-            int j;
-            for (j = 0; j < i; j++) {
-                if (!strcmp(g->src[j], l->destinatie)) {
-                    ok = 1;
-                    break;
-                }
-            }
-
-            if (!ok) {
+            if (l->input) {
                 idx++;
 
                 float suma = 0;
+                int j;
                 for (j = 0; j < l->nr_costuri; j++) {
                     suma = suma + l->cost[j];
                 }
 
-                if (suma / l->nr_costuri < L) {
+                if (suma / l->nr_costuri <= L) {
                     fprintf(fout, "%d ", idx);
                 }
             }
             l = l->urm;
         }
     }
+}
+
+// pentru cerinta 2 am folosit implementarile facute la laborator:
+int MinNode(TGL *g, int *visited, int *distances)
+{
+    int minDist = INT_MAX;
+    int result;
+    for (int i = 0; i < g->n; i++) {
+        if (visited[i] == 0 && distances[i] < minDist) {
+            result = i;
+            minDist = distances[i];
+        }
+    }
+    return result;
+}
+
+int* Prim(TGL *g, int n) 
+{
+    // aloc spatiu pt visited, distances, parents
+    int *visited, *distances, *parents;
+    visited = (int *)calloc(g->n, sizeof(int));
+    distances = (int *)calloc(g->n, sizeof(int));
+    parents = (int *)calloc(g->n, sizeof(int));
+
+    // initializari vectori (parents -> 0 -> calloc)
+    for (int  i = 0; i < g->n; i++) {
+        distances[i] = INT_MAX;
+    }
+
+    distances[n] = 0;
+    parents[n] = -1;  // o valoare care nu exista in graf = valoarea radacinii arborelui de acoperire minim
+
+    for (int i = 0; i < g->n; i++) {
+        // selectare nod de vizitat: nodul sa nu fie vizitat si sa aiba distanta minima
+        int index = MinNode(g, visited, distances);
+        visited[index] = 1;
+
+        // parcurgem vecinii nodului pe care doar ce l-am vizitat
+        for(AArc L = g->v[index]; L != NULL; L = L->urm) {
+            int j;
+            for (j = 0; j < g->n; j++) {
+                if (!strcmp(L->destinatie, g->src[j])) {
+                    break;
+                }
+            } 
+
+            if ((int)L->cost[0] < distances[j] && visited[j] == 0) {
+                distances[j] = (int)L->cost[0];
+                parents[j] = index;
+            }
+        }
+    }
+
+    free(distances);
+    free(visited);
+
+    return parents;
 }
 
 void DistrArc(AArc arc)

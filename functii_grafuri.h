@@ -6,11 +6,14 @@
 #ifndef GRAF_H
 #define GRAF_H
 
+#define INT_MAX 2147483647
+
 typedef struct celarc { 
     char *destinatie;
     int nr_costuri;
     float *cost;
     int *modificat;
+    int input;
     struct celarc *urm;
 } TCelArc, *AArc;
 
@@ -24,10 +27,11 @@ void CloseFiles(FILE *fin, FILE *fout);
 TGL* AlocG();
 AArc AlocArc(int nr, char *dest);
 int AdaugaOras(TGL *g, char *oras);
-int AdaugaRuta(FILE *fin, TGL *g);
+int AdaugaRuta(int cerinta, FILE *fin, TGL *g);
 void ModificaGradAfectare(TGL *g, int K);
 void Afisare1(FILE *fout, TGL *g);
 void PastreazaRute(FILE *fout, TGL *g, int L);
+int* Prim(TGL *g, int n);
 void DistrArc(AArc arc);
 void DistrG(TGL** ag);
 
