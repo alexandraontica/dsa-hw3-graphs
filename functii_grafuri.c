@@ -258,16 +258,40 @@ void ModificaGradAfectare(TGL *g, int K)
                             }
                             l->cost[j] = max / 2;
                             l->modificat[j] = -1;
+                        } else if (l->nr_costuri == 1) {
+                            float max = 0;
+                            AArc p = g->v[i];
+                            for (; p != NULL; p = p->urm) {
+                                if (p->modificat[0] == 1 && p->cost[0] / 2 > max) {
+                                    max = p->cost[0] / 2;
+                                } else if (p->modificat[0] == 0 && p->cost[0] > max) {
+                                    max = p->cost[0];
+                                }
+                            }
+
+                            int t;
+                            for (t = 0; t < g->n; t++) {
+                                if (!strcmp(g->src[t], l->destinatie)) {
+                                    break;
+                                }
+                            }
+
+                            p = g->v[t];
+                            for (; p != NULL; p = p->urm) {
+                                if (p->modificat[0] == 1 && p->cost[0] / 2 > max) {
+                                    max = p->cost[0] / 2;
+                                } else if (p->modificat[0] == 0 && p->cost[0] > max) {
+                                    max = p->cost[0];
+                                }
+                            }
+                            l->cost[j] = max / 2;
+                            l->modificat[j] = -1;
                         } else if (j == 0) {
                             float max = 0;
-
-                            // daca vectorul de costuri nu are un singur element:
-                            if (j + 1 < l->nr_costuri) {
-                                if (l->modificat[j + 1] == 0) {
-                                    max = l->cost[j + 1];
-                                } else if (l->modificat[j + 1] == 1) {
-                                    max = l->cost[j + 1] / 2;
-                                }
+                            if (l->modificat[j + 1] == 0) {
+                                max = l->cost[j + 1];
+                            } else if (l->modificat[j + 1] == 1) {
+                                max = l->cost[j + 1] / 2;
                             }
 
                             AArc p = g->v[i];
@@ -314,52 +338,39 @@ void ModificaGradAfectare(TGL *g, int K)
     }
 }
 
-void Afisare1(FILE *fout, TGL *g)
-// afisare graf - cerinta 1
+void SortareRute(AArc *rute, char **orase, int R)
 {
-    int i;
-    for (i = 0; i < g->n; i++) {
-        AArc l = g->v[i];
-        while (l) {
-            if (l->input) {
-                fprintf(fout, "%s %s ", g->src[i], l->destinatie);
-                fprintf(fout, "%d ", l->nr_costuri);
-                
-                int j;
-                for (j = 0; j < l->nr_costuri; j++) {
-                    fprintf(fout, "%.2f ", l->cost[j]);
-                }
-                fprintf(fout, "\n");
+    int i, j;
+    for(i = 0; i < R - 1; i++) {
+        for (j = i + 1; j < R; j++) {
+            if (rute[i]->nr_ordine > rute[j]->nr_ordine) {
+                AArc aux1 = rute[i];
+                rute[i] = rute[j];
+                rute[j] = aux1;
+
+                char *aux2 = orase[i];
+                orase[i] = orase[j];
+                orase[j] = aux2;
             }
-            l = l->urm;
         }
     }
 }
 
-void PastreazaRute(FILE *fout, TGL *g, int L)
+void PastreazaRute(FILE *fout, AArc *rute, int L, int R)
 // determina rutele care merita pastrate si le afiseaza indicii
 {
-    int idx = 0;  // retine indexul rutei curente
     int i;
-    for (i = 0; i < g->n; i++) {
-        AArc l = g->v[i];
-        while (l) {
-            if (l->input) {
-                idx++;
-
-                float suma = 0;
-                int j;
-                for (j = 0; j < l->nr_costuri; j++) {
-                    suma = suma + l->cost[j];
-                }
-
-                if (suma / l->nr_costuri < L) {
-                    fprintf(fout, "%d ", idx);
-                }
-            }
-            l = l->urm;
+    for (i = 0; i < R; i++) {
+        float suma = 0;
+        int j;
+        for (j = 0; j < rute[i]->nr_costuri; j++) {
+            suma = suma + rute[i]->cost[j];
         }
-    }
+
+        if (suma / rute[i]->nr_costuri < L) {
+            fprintf(fout, "%d ", i + 1);  // rutele se numara de la 1, nu de la 0
+        }
+    }  
 }
 
 int MinNode(TGL *g, int *visited, int *distances)
@@ -506,7 +517,7 @@ TMuchie* SalveazaMuchiiDrumuriMinime(TGL *graf, char **last)
     return muchii;
 }
 
-void SortareDesc(TMuchie *muchii, int *nrDrMin, int *distante, int *ordine, char **last, int nr)
+void SortareMuchiiDesc(TMuchie *muchii, int *nrDrMin, int *distante, int *ordine, char **last, int nr)
 {
     int i, j;
     for (i = 0; i < nr - 1; i++) {
@@ -558,7 +569,7 @@ void SortareDesc(TMuchie *muchii, int *nrDrMin, int *distante, int *ordine, char
     }
 }
 
-void SortareCresc(TMuchie *muchii, char **last, int *ordine, int nr)
+void SortareMuchiiCresc(TMuchie *muchii, char **last, int *ordine, int nr)
 {
     int i, j;
     for (i = 0; i < nr - 1; i++) {
@@ -619,5 +630,5 @@ void DistrLast(char ***last, int nr)
         }
     }
     free(*last);
-    last = NULL;
+    *last = NULL;
 }

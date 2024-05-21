@@ -49,9 +49,68 @@ int main(int argc, char *argv[])
         }
 
         ModificaGradAfectare(graf, K);
-        Afisare1(fout, graf);
-        PastreazaRute(fout, graf, L);
 
+        AArc *rute = (AArc *)calloc(R, sizeof(AArc));
+        if (!rute) {
+            DistrG(&graf);
+            CloseFiles(fin, fout);
+            return 0;
+        }
+
+        char **orase = (char **)calloc(R, sizeof(char *));
+        if (!orase) {
+            free(rute);
+            DistrG(&graf);
+            CloseFiles(fin, fout);
+            return 0;
+        }
+
+        int idx = 0;
+        for (i = 0; i < graf->n; i++) {
+            AArc l = graf->v[i];
+            while (l) {
+                if (l->input) {
+                    rute[idx] = l;
+                    orase[idx] = strdup(graf->src[i]);
+                    if (!orase[idx]) {
+                        int t = 0;
+                        for (t = 0; t < idx; t++) {
+                            free(orase[t]);
+                        }
+                        free(orase);
+                        free(rute);
+                        DistrG(&graf);
+                        CloseFiles(fin, fout);
+                        return 0;
+                    }
+
+                    idx++;
+                }
+                l = l->urm;
+            }
+        }
+
+        SortareRute(rute, orase, R);
+
+        for (i = 0; i < R; i++) {
+            fprintf(fout, "%s %s ", orase[i], rute[i]->destinatie);
+            fprintf(fout, "%d ", rute[i]->nr_costuri);
+                
+            int j;
+            for (j = 0; j < rute[i]->nr_costuri; j++) {
+                fprintf(fout, "%.2f ", rute[i]->cost[j]);
+            }
+            fprintf(fout, "\n");
+        }
+
+        PastreazaRute(fout, rute, L, R);
+
+        for(i = 0; i < R; i++) {
+            free(orase[i]);
+        }
+        free(orase);
+
+        free(rute);
         DistrG(&graf);
     } else if (!strcmp(argv[1], "2")) {
         // cerinta 2
@@ -142,7 +201,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        SortareDesc(muchii, nrDrMin, distante, ordine, last, graf->n);
+        SortareMuchiiDesc(muchii, nrDrMin, distante, ordine, last, graf->n);
 
         int nrRute = 0;
         for (i = 0; i < graf->n; i++) {
@@ -158,7 +217,7 @@ int main(int argc, char *argv[])
             fprintf(fout, "%d\n", K);
         }
 
-        SortareCresc(muchii, last, ordine, K);
+        SortareMuchiiCresc(muchii, last, ordine, K);
 
         for (i = 0; i < K; i++) {
             if (last[i]) {
