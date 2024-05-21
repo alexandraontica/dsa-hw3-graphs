@@ -112,7 +112,7 @@ void InserareRutaSf(AArc *lista, AArc ruta)
     }
 }
 
-int AdaugaRuta(int cerinta, FILE *fin, TGL *g)
+int AdaugaRuta(int cerinta, FILE *fin, TGL *g, int ord)
 // returneaza 1 daca ruta a fost adaugata cu succes, 0 in caz contrar
 {
     char start[20], dest[20];
@@ -184,6 +184,8 @@ int AdaugaRuta(int cerinta, FILE *fin, TGL *g)
         ruta_dus->cost[i] = procent;
         ruta_intors->cost[nr - i - 1] = procent;
     }
+    ruta_dus->nr_ordine = ord;
+    ruta_intors->nr_ordine = ord;
 
     // legare ruta dus:
     InserareRutaSf(&g->v[poz_start], ruta_dus);
@@ -351,7 +353,7 @@ void PastreazaRute(FILE *fout, TGL *g, int L)
                     suma = suma + l->cost[j];
                 }
 
-                if (suma / l->nr_costuri <= L) {
+                if (suma / l->nr_costuri < L) {
                     fprintf(fout, "%d ", idx);
                 }
             }
@@ -360,12 +362,11 @@ void PastreazaRute(FILE *fout, TGL *g, int L)
     }
 }
 
-// pentru cerinta 2 am folosit implementarile facute la laborator:
 int MinNode(TGL *g, int *visited, int *distances)
 {
     int minDist = INT_MAX;
-    int result;
-    for (int i = 0; i < g->n; i++) {
+    int result, i;
+    for (i = 0; i < g->n; i++) {
         if (visited[i] == 0 && distances[i] < minDist) {
             result = i;
             minDist = distances[i];
@@ -374,47 +375,209 @@ int MinNode(TGL *g, int *visited, int *distances)
     return result;
 }
 
-int* Prim(TGL *g, int n) 
+int* Dijkstra(TGL *g, int n, char **last)
 {
-    // aloc spatiu pt visited, distances, parents
-    int *visited, *distances, *parents;
-    visited = (int *)calloc(g->n, sizeof(int));
-    distances = (int *)calloc(g->n, sizeof(int));
-    parents = (int *)calloc(g->n, sizeof(int));
+    // aloc spatiu pt vectorii visited si distances -> g.n + 1 poz
+    int *visited = (int *)calloc(g->n , sizeof(int));
+    if (!visited) {
+        return NULL;
+    }
 
-    // initializari vectori (parents -> 0 -> calloc)
-    for (int  i = 0; i < g->n; i++) {
+    int *distances = (int *)calloc(g->n, sizeof(int));
+    if (!distances) {
+        free(visited);
+        return NULL;
+    }
+
+    // initializare visited (cu 0 -> calloc) si distances (cu INT_MAX)
+    int i;
+    for (i = 0; i < g->n; i++) {
         distances[i] = INT_MAX;
     }
 
     distances[n] = 0;
-    parents[n] = -1;  // o valoare care nu exista in graf = valoarea radacinii arborelui de acoperire minim
 
-    for (int i = 0; i < g->n; i++) {
-        // selectare nod de vizitat: nodul sa nu fie vizitat si sa aiba distanta minima
+    for (i = 0; i < g->n; i++) {
+        // selectez nod de vizitat (nodul sa nu fie vizitat si sa aiba distanta minima):
         int index = MinNode(g, visited, distances);
         visited[index] = 1;
 
-        // parcurgem vecinii nodului pe care doar ce l-am vizitat
-        for(AArc L = g->v[index]; L != NULL; L = L->urm) {
-            int j;
-            for (j = 0; j < g->n; j++) {
-                if (!strcmp(L->destinatie, g->src[j])) {
-                    break;
-                }
-            } 
+        // parcurg vecinii nodului pe care doar ce l-am vizitat:
+        AArc L;
+        for(L = g->v[index]; L != NULL; L = L->urm) {
+            int index_dest = CautaNod(g, L->destinatie);
 
-            if ((int)L->cost[0] < distances[j] && visited[j] == 0) {
-                distances[j] = (int)L->cost[0];
-                parents[j] = index;
+            if (distances[index] + (int)L->cost[0] < distances[index_dest] && visited[index_dest] == 0) {
+                distances[index_dest] = distances[index] + (int)L->cost[0];
+                free(last[index_dest]);
+
+                last[index_dest] = strdup(g->src[index]);
+                
+                if (!last[index_dest]) {
+                    free(visited);
+                    free(distances);
+                    return NULL;
+                }
             }
         }
     }
 
-    free(distances);
     free(visited);
+    return distances;
+}
 
-    return parents;
+int CautaNod(TGL *g, char* oras)
+{
+    int i;
+    for (i = 0; i < g->n; i++) {
+        if (!strcmp(oras, g->src[i])) {
+            return i;
+        }
+    }
+
+    // functia nu ar trebui sa ajunga aici, dar totusi trebuie sa
+    // returneze ceva:
+    return -1;
+}
+
+void NumarParcurgeri(int nodCurent, char **last, int *nrDrMin, TGL *g)
+{
+    if (!last[nodCurent]) {
+        // am ajuns la orasul de start
+        return;
+    }
+
+    nrDrMin[nodCurent]++;
+    int nod = CautaNod(g, last[nodCurent]);
+    NumarParcurgeri(nod, last, nrDrMin, g);
+}
+
+TMuchie* SalveazaMuchiiDrumuriMinime(TGL *graf, char **last)
+{
+    int i;
+    TMuchie *muchii = (TMuchie *)calloc(graf->n, sizeof(TMuchie));
+    if (!muchii) {
+        return NULL;
+    }
+
+    for (i = 0; i < graf->n; i++) {
+        if (last[i]) {
+            int esteInput = 0;
+            AArc l;
+            for (l = graf->v[i]; l; l = l->urm) {
+                if (!strcmp(last[i], l->destinatie)) {
+                    if (l->input) {
+                        esteInput = 1;
+                    }
+                    break;
+                }
+            }
+
+            if (esteInput) {
+                muchii[i].start = strdup(graf->src[i]);
+                if (!muchii[i].start) {
+                    free(muchii);
+                    return NULL;
+                }
+
+                muchii[i].destinatie = strdup(last[i]);
+                if (!muchii[i].destinatie) {
+                    free(muchii[i].start);
+                    free(muchii);
+                    return NULL;
+                }
+            } else {
+                muchii[i].start = strdup(last[i]);
+                if (!muchii[i].start) {
+                    free(muchii);
+                    return NULL;
+                }
+
+                muchii[i].destinatie = strdup(graf->src[i]);
+                if (!muchii[i].destinatie) {
+                    free(muchii[i].start);
+                    free(muchii);
+                    return NULL;
+                }
+            }
+        }
+    }
+
+    return muchii;
+}
+
+void SortareDesc(TMuchie *muchii, int *nrDrMin, int *distante, int *ordine, char **last, int nr)
+{
+    int i, j;
+    for (i = 0; i < nr - 1; i++) {
+        for (j = i + 1; j < nr; j++) {
+            if (nrDrMin[i] < nrDrMin[j]) {
+                int aux1 = nrDrMin[i];
+                nrDrMin[i] = nrDrMin[j];
+                nrDrMin[j] = aux1;
+
+                TMuchie aux2 = muchii[i];
+                muchii[i] = muchii[j];
+                muchii[j] = aux2;
+
+                aux1 = distante[i];
+                distante[i] = distante[j];
+                distante[j] = aux1;
+
+                aux1 = ordine[i];
+                ordine[i] = ordine[j];
+                ordine[j] = aux1;
+
+                char *aux3 = last[i];
+                last[i] = last[j];
+                last[j] = aux3;
+            } else if (nrDrMin[i] == nrDrMin[j]) {
+                if (distante[i] > distante[j]) {
+                    int aux1 = nrDrMin[i];
+                    nrDrMin[i] = nrDrMin[j];
+                    nrDrMin[j] = aux1;
+
+                    TMuchie aux2 = muchii[i];
+                    muchii[i] = muchii[j];
+                    muchii[j] = aux2;
+
+                    aux1 = distante[i];
+                    distante[i] = distante[j];
+                    distante[j] = aux1;
+
+                    aux1 = ordine[i];
+                    ordine[i] = ordine[j];
+                    ordine[j] = aux1;
+
+                    char *aux3 = last[i];
+                    last[i] = last[j];
+                    last[j] = aux3;
+                }
+            }
+        }
+    }
+}
+
+void SortareCresc(TMuchie *muchii, char **last, int *ordine, int nr)
+{
+    int i, j;
+    for (i = 0; i < nr - 1; i++) {
+        for (j = i + 1; j < nr; j++) {
+            if (ordine[i] > ordine[j]) {
+                int aux1 = ordine[i];
+                ordine[i] = ordine[j];
+                ordine[j] = aux1;
+
+                TMuchie aux2 = muchii[i];
+                muchii[i] = muchii[j];
+                muchii[j] = aux2;
+
+                char *aux3 = last[i];
+                last[i] = last[j];
+                last[j] = aux3;
+            }
+        }
+    }
 }
 
 void DistrArc(AArc arc)
@@ -444,4 +607,17 @@ void DistrG(TGL **ag)
     free((*ag)->v);
     free(*ag);
     *ag = NULL;
+}
+
+void DistrLast(char ***last, int nr)
+// elibereaza memoria alocata pentru last (cerinta 2)
+{
+    int i;
+    for (i = 0; i < nr; i++) {
+        if ((*last)[i]) {
+            free((*last)[i]);
+        }
+    }
+    free(*last);
+    last = NULL;
 }

@@ -14,25 +14,40 @@ typedef struct celarc {
     float *cost;
     int *modificat;
     int input;
+    int nr_ordine;
     struct celarc *urm;
 } TCelArc, *AArc;
 
 typedef struct {
-    int n;       // numar noduri
-    char **src;  // vector etichete noduri (orasele de unde pornesc muchiile)
-    AArc* v;     // vector adrese liste arce
+    int n;        // numar noduri
+    char **src;   // vector etichete noduri (orasele de unde pornesc muchiile)
+    AArc* v;      // vector adrese liste arce
 } TGL;
+
+// pentru afisare la cerinta 2:
+typedef struct {
+    char *start;
+    char *destinatie;
+} TMuchie;
 
 void CloseFiles(FILE *fin, FILE *fout);
 TGL* AlocG();
 AArc AlocArc(int nr, char *dest);
 int AdaugaOras(TGL *g, char *oras);
-int AdaugaRuta(int cerinta, FILE *fin, TGL *g);
+void InserareRutaSf(AArc *lista, AArc ruta);
+int AdaugaRuta(int cerinta, FILE *fin, TGL *g, int ord);
 void ModificaGradAfectare(TGL *g, int K);
 void Afisare1(FILE *fout, TGL *g);
 void PastreazaRute(FILE *fout, TGL *g, int L);
-int* Prim(TGL *g, int n);
+int MinNode(TGL *g, int *visited, int *distances);
+int* Dijkstra(TGL *g, int n, char **last);
+int CautaNod(TGL *g, char* oras);
+void NumarParcurgeri(int nodCurent, char **last, int *nrDrMin, TGL *g);
+TMuchie* SalveazaMuchiiDrumuriMinime(TGL *graf, char **last);
+void SortareDesc(TMuchie *muchii, int *nrDrMin, int *distante, int *ordine, char **last, int nr);
+void SortareCresc(TMuchie *muchii, char **last, int *ordine, int nr);
 void DistrArc(AArc arc);
 void DistrG(TGL** ag);
+void DistrLast(char ***last, int nr);
 
 #endif  // GRAF_H

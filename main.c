@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
 
         int i;
         for (i = 0; i < R; i++) {
-            int rez = AdaugaRuta(1, fin, graf);
+            int rez = AdaugaRuta(1, fin, graf, i);
             if (!rez) {
                 DistrG(&graf);
                 CloseFiles(fin, fout);
@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
 
         int i;
         for (i = 0; i < M; i++) {
-            int rez = AdaugaRuta(2, fin, graf);
+            int rez = AdaugaRuta(2, fin, graf, i);
             if (!rez) {
                 DistrG(&graf);
                 CloseFiles(fin, fout);
@@ -77,22 +77,106 @@ int main(int argc, char *argv[])
             }
         }
 
-        for (i = 0; i < graf->n; i++) {
-            if (!strcmp(start, graf->src[i])) {
-                break;
-            }
-        } 
+        int nodStart = CautaNod(graf, start); 
 
-        int *parents = Prim(graf, i);
+        char **last = (char **)calloc(graf->n, sizeof(char *));
+        // last retine ultimul oras prin care se trece inainte sa se
+        // ajunga la orasul dorit, parcurgand drumul de cost minim
+        if (!last) {
+            DistrG(&graf);
+            CloseFiles(fin, fout);
+            return 0;
+        }
+
+        int *distante = Dijkstra(graf, nodStart, last);
+        if (!distante) {
+            DistrLast(&last, graf->n);
+            DistrG(&graf);
+            CloseFiles(fin, fout);
+            return 0;
+        }
+
+        int *nrDrMin = (int *)calloc(graf->n, sizeof(int));
+        if (!nrDrMin) {
+            free(distante);
+            DistrLast(&last, graf->n);
+            DistrG(&graf);
+            CloseFiles(fin, fout);
+            return 0;
+        }
+
         for (i = 0; i < graf->n; i++) {
-            if (parents[i] != -1) {
-                printf("%s %s\n", graf->src[parents[i]], graf->src[i]);
-            } else {
-                // if ()
-                printf("%s %s\n", start, graf->src[i]);
+            NumarParcurgeri(i, last, nrDrMin, graf);
+        }
+
+        TMuchie *muchii = SalveazaMuchiiDrumuriMinime(graf, last);
+        if (!muchii) {
+            free(nrDrMin);
+            free(distante);
+            DistrLast(&last, graf->n);
+            DistrG(&graf);
+            CloseFiles(fin, fout);
+            return 0;
+        }
+
+        int *ordine = (int *)calloc(graf->n, sizeof(int));
+        if (!ordine) {
+            free(muchii);
+            free(nrDrMin);
+            free(distante);
+            DistrLast(&last, graf->n);
+            DistrG(&graf);
+            CloseFiles(fin, fout);
+            return 0;
+        }
+
+        for (i = 0; i < graf->n; i++) {
+            if (last[i]) {
+                AArc l;
+                for (l = graf->v[i]; l; l = l->urm) {
+                    if (!strcmp(last[i], l->destinatie)) {
+                        break;
+                    }
+                }
+                ordine[i] = l->nr_ordine;
             }
         }
 
+        SortareDesc(muchii, nrDrMin, distante, ordine, last, graf->n);
+
+        int nrRute = 0;
+        for (i = 0; i < graf->n; i++) {
+            if (last[i]) {
+                nrRute++;
+            }
+        }
+        
+        if (nrRute < K) {
+            K = nrRute;
+            fprintf(fout, "%d\n", K);
+        } else {
+            fprintf(fout, "%d\n", K);
+        }
+
+        SortareCresc(muchii, last, ordine, K);
+
+        for (i = 0; i < K; i++) {
+            if (last[i]) {
+                fprintf(fout, "%s %s\n", muchii[i].start, muchii[i].destinatie);
+            }
+        }
+
+        // eliberez memoria alocata:
+        for (i = 0; i < graf->n; i++) {
+            free(muchii[i].start);
+            free(muchii[i].destinatie);
+        }
+        free(muchii);
+
+        free(ordine);
+        free(nrDrMin);
+        free(distante);
+        DistrLast(&last, graf->n);
         DistrG(&graf);
     } else {
         fprintf(stderr, "Cerinta invalida\n");
