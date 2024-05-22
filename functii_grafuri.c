@@ -9,6 +9,7 @@ void CloseFiles(FILE *fin, FILE *fout)
 }
 
 TGL* AlocG()
+// aloca memorie pentru graf
 {
     TGL *g = (TGL *)malloc(sizeof(TGL));
     if (!g) {
@@ -26,6 +27,7 @@ TGL* AlocG()
 }
 
 AArc AlocArc(int nr, char *dest)
+// aloca memorie pentru un arc/o ruta
 {
     AArc arc = (AArc)calloc(1, sizeof(TCelArc));
     if(!arc) {
@@ -57,12 +59,15 @@ AArc AlocArc(int nr, char *dest)
     }
 
     arc->input = 0;
-    // input retine daca muchia face parte din fisierul de input
+    // input retine daca muchia face parte din fisierul de input:
     // de ex, daca citesc Londra-Paris, pentru muchia cu startul in Londra si 
     // destinatia in Parit input o sa fie 1;
     // pentru aceeasi muchie, dar adaugata in lista de adiacenta a nodului Paris,
     // (startul in Paris si destinatia in Londra), input o sa fie 0;
     // modific valoarea lui input in afara functiei de alocare
+
+    arc->nr_ordine = -1;
+    // modific valoarea lui nr_ordine in afara functiei de alocare
 
     return arc;
 }
@@ -70,6 +75,7 @@ AArc AlocArc(int nr, char *dest)
 int AdaugaOras(TGL *g, char *oras)
 // adauga un oras/nod nou in graf
 {
+    // ii aloc spatiu in campurile vectori din structura:
     char **aux1 = (char **)realloc(g->src, (g->n + 1) * sizeof(char *));
     if (!aux1) {
         return 0;
@@ -100,6 +106,7 @@ void InserareRutaSf(AArc *lista, AArc ruta)
     AArc p = *lista;
     AArc ultim = NULL;
 
+    // determin ultima celula din lista:
     while (p) {
         ultim = p;
         p = p->urm;
@@ -108,11 +115,27 @@ void InserareRutaSf(AArc *lista, AArc ruta)
     if (ultim) {
         ultim->urm = ruta;
     } else {
+        // daca lista este vida
         *lista = ruta;
     }
 }
 
+int CautaNod(TGL *g, char* oras)
+// cauta un oras in graf
+// returneaza pozitia sa daca l-a gasit sau -1 in caz contrar
+{
+    int i;
+    for (i = 0; i < g->n; i++) {
+        if (!strcmp(oras, g->src[i])) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
 int AdaugaRuta(int cerinta, FILE *fin, TGL *g, int ord)
+// citeste informatiile rutei curente, creeaza ruta si o adauga in graf
 // returneaza 1 daca ruta a fost adaugata cu succes, 0 in caz contrar
 {
     char start[20], dest[20];
@@ -123,21 +146,13 @@ int AdaugaRuta(int cerinta, FILE *fin, TGL *g, int ord)
     if (cerinta == 1) {
         fscanf(fin, "%d", &nr);
     } else {
+        // cerinta 2 are un singur cost pe fiecare muchie
         nr = 1;
     }
 
-    int i, poz_start = -1, poz_dest = -1;
-    for (i = 0; i < g->n; i++) {
-        // verific daca exista orasul de start in graf:
-        if(!strcmp(start, g->src[i])) {
-            poz_start = i;
-        }
-
-        // verific daca exista orasul destinatie in graf:
-        if(!strcmp(dest, g->src[i])) {
-            poz_dest = i;
-        }
-    }
+    // caut orasele citite in graf:
+    int poz_start = CautaNod(g, start);
+    int poz_dest = CautaNod(g, dest);
     
     if (poz_start == -1) {
         // orasul de start nu exista in graf
@@ -177,6 +192,7 @@ int AdaugaRuta(int cerinta, FILE *fin, TGL *g, int ord)
     }
 
     // populeaza vectorii cu gradele de afectare de pe fiecare tronson:
+    int i;
     for (i = 0; i < nr; i++) {
         float procent;
         fscanf(fin, "%f", &procent);
@@ -184,6 +200,9 @@ int AdaugaRuta(int cerinta, FILE *fin, TGL *g, int ord)
         ruta_dus->cost[i] = procent;
         ruta_intors->cost[nr - i - 1] = procent;
     }
+
+    // salvez pozitia rutei in fisierul de citire
+    // pentru a le putea afisa la final in ordinea corecta:
     ruta_dus->nr_ordine = ord;
     ruta_intors->nr_ordine = ord;
 
@@ -197,24 +216,24 @@ int AdaugaRuta(int cerinta, FILE *fin, TGL *g, int ord)
 }
 
 void ModificaGradAfectare(TGL *g, int K)
+// modifica gradele de afectare pe parcursul a K ani
 {
     // de fiecare data cand modific un tronson, 
     // marchez acest lucru in campul modificat (vector) al arcului 
 
     // legenda camp modificat[j]:
-    // daca valoarea este 0, nu a fost modificat, 
+    // daca valoarea este 0, tronsonul nu a fost modificat, 
     // daca este 1, valoarea i-a fost deja dublata, 
     // daca este -1, era 0 inainte si valoarea i-a fost actualizata
 
     int q;
     for (q = 0; q < K; q++) {
         int i;
-
         for (i = 0; i < g->n; i++) {
             AArc l = g->v[i];
             while (l) {
+                // initializare camp "modificat" pentru anul curent:
                 int j;
-                // initializare camp "modificat" pentru anul curent
                 for (j = 0; j < l->nr_costuri; j++) {
                     l->modificat[j] = 0;
                 }
@@ -228,9 +247,9 @@ void ModificaGradAfectare(TGL *g, int K)
                 int j;
                 for (j = 0; j < l->nr_costuri; j++) {
                     if (l->cost[j]) {
-                        // daca gradul de afectare este diferit de 0
+                        // daca gradul de afectare este diferit de 0,
                         // verific daca il pot dubla astfel incat
-                        // sa nu depaseasca 100
+                        // sa nu depaseasca 100:
                         if (l->cost[j] * 2 < 100) {
                             l->cost[j] = l->cost[j] * 2;
                         } else {
@@ -238,8 +257,13 @@ void ModificaGradAfectare(TGL *g, int K)
                         }
                         l->modificat[j] = 1;
                     } else {
-                        // daca gradul de afectare este 0
+                        // daca gradul de afectare este 0,
+                        // determin maximul dintre vecini,
+                        // tinand cont de valorile din campul modificat,
+                        // pentru a afla noua valoare:
                         if (j > 0 && j < l->nr_costuri - 1) {
+                            // daca nu se afla "la margine",
+                            // vecinii se afla pe aceeasi ruta
                             float max = 0;
                             if (l->modificat[j - 1] == 1) {
                                 max = l->cost[j - 1] / 2;
@@ -259,6 +283,9 @@ void ModificaGradAfectare(TGL *g, int K)
                             l->cost[j] = max / 2;
                             l->modificat[j] = -1;
                         } else if (l->nr_costuri == 1) {
+                            // daca exista un singur tronson pe ruta,
+                            // vecinii sunt primele trosoane de pe muchiile
+                            // incidente cu nodul de start si cu nodul destinatie
                             float max = 0;
                             AArc p = g->v[i];
                             for (; p != NULL; p = p->urm) {
@@ -269,12 +296,7 @@ void ModificaGradAfectare(TGL *g, int K)
                                 }
                             }
 
-                            int t;
-                            for (t = 0; t < g->n; t++) {
-                                if (!strcmp(g->src[t], l->destinatie)) {
-                                    break;
-                                }
-                            }
+                            int t = CautaNod(g, l->destinatie);
 
                             p = g->v[t];
                             for (; p != NULL; p = p->urm) {
@@ -287,6 +309,10 @@ void ModificaGradAfectare(TGL *g, int K)
                             l->cost[j] = max / 2;
                             l->modificat[j] = -1;
                         } else if (j == 0) {
+                            // transonul este primul in ruta;
+                            // vecinul din dreapta se afla pe aceeasi ruta,
+                            // restul vecinilor sunt primele tronsoane de pe
+                            // muchiile incidente nodului de start
                             float max = 0;
                             if (l->modificat[j + 1] == 0) {
                                 max = l->cost[j + 1];
@@ -305,6 +331,10 @@ void ModificaGradAfectare(TGL *g, int K)
                             l->cost[j] = max / 2;
                             l->modificat[j] = -1;
                         } else if (j == l->nr_costuri - 1) {
+                            // transonul este ultimul in ruta;
+                            // vecinul din stanga se afla pe aceeasi ruta,
+                            // restul vecinilor sunt primele tronsoane de pe
+                            // muchiile incidente nodului destinatie
                             float max = 0;
                             if (l->modificat[j - 1] == 0) {
                                 max = l->cost[j - 1];
@@ -312,12 +342,9 @@ void ModificaGradAfectare(TGL *g, int K)
                                 max = l->cost[j - 1] / 2;
                             }
 
-                            int t;
-                            for (t = 0; t < g->n; t++) {
-                                if (!strcmp(g->src[t], l->destinatie)) {
-                                    break;
-                                }
-                            }
+                            int t = CautaNod(g, l->destinatie);
+                            // destinatia sigur exista in graf (din constructia grafului),
+                            // deci t este sigur diferit de -1
 
                             AArc p = g->v[t];
                             for (; p != NULL; p = p->urm) {
@@ -339,6 +366,8 @@ void ModificaGradAfectare(TGL *g, int K)
 }
 
 void SortareRute(AArc *rute, char **orase, int R)
+// sorteaza rutele crescator dupa numarul de ordine
+// ca sa le afisez in ordinea in care apar in input
 {
     int i, j;
     for(i = 0; i < R - 1; i++) {
@@ -374,6 +403,7 @@ void PastreazaRute(FILE *fout, AArc *rute, int L, int R)
 }
 
 int MinNode(TGL *g, int *visited, int *distances)
+// determina primul nod care nu e vizitat si are distanta minima
 {
     int minDist = INT_MAX;
     int result, i;
@@ -383,12 +413,14 @@ int MinNode(TGL *g, int *visited, int *distances)
             minDist = distances[i];
         }
     }
+
     return result;
 }
 
 int* Dijkstra(TGL *g, int n, char **last)
+// determina distanta minima de la un nod dat la celelalte noduri din graf
 {
-    // aloc spatiu pt vectorii visited si distances -> g.n + 1 poz
+    // aloc spatiu pt vectorii visited si distances
     int *visited = (int *)calloc(g->n , sizeof(int));
     if (!visited) {
         return NULL;
@@ -400,12 +432,11 @@ int* Dijkstra(TGL *g, int n, char **last)
         return NULL;
     }
 
-    // initializare visited (cu 0 -> calloc) si distances (cu INT_MAX)
+    // initializare distante:
     int i;
     for (i = 0; i < g->n; i++) {
         distances[i] = INT_MAX;
     }
-
     distances[n] = 0;
 
     for (i = 0; i < g->n; i++) {
@@ -418,12 +449,15 @@ int* Dijkstra(TGL *g, int n, char **last)
         for(L = g->v[index]; L != NULL; L = L->urm) {
             int index_dest = CautaNod(g, L->destinatie);
 
-            if (distances[index] + (int)L->cost[0] < distances[index_dest] && visited[index_dest] == 0) {
+            if (distances[index] + (int)L->cost[0] < distances[index_dest] && 
+                visited[index_dest] == 0) {
+                // am gasit o distanta mai mica, modific valoarea din distances:
                 distances[index_dest] = distances[index] + (int)L->cost[0];
-                free(last[index_dest]);
 
+                // modific si ultimul nod prin care se trece inainte sa se
+                // ajunga la orasul dorit, parcurgand drumul de cost minim:
+                free(last[index_dest]);
                 last[index_dest] = strdup(g->src[index]);
-                
                 if (!last[index_dest]) {
                     free(visited);
                     free(distances);
@@ -437,21 +471,8 @@ int* Dijkstra(TGL *g, int n, char **last)
     return distances;
 }
 
-int CautaNod(TGL *g, char* oras)
-{
-    int i;
-    for (i = 0; i < g->n; i++) {
-        if (!strcmp(oras, g->src[i])) {
-            return i;
-        }
-    }
-
-    // functia nu ar trebui sa ajunga aici, dar totusi trebuie sa
-    // returneze ceva:
-    return -1;
-}
-
 void NumarParcurgeri(int nodCurent, char **last, int *nrDrMin, TGL *g)
+// marcheaza ce muchii se parcurg in drumul minim de la nodul de start la nodul curent
 {
     if (!last[nodCurent]) {
         // am ajuns la orasul de start
@@ -459,11 +480,16 @@ void NumarParcurgeri(int nodCurent, char **last, int *nrDrMin, TGL *g)
     }
 
     nrDrMin[nodCurent]++;
+
+    // determin pozitia nodului prin care am trecut inainte sa ajung la nodul curent:
+    // (parcurg drumul minim invers, de la nodul curent la nodul de start)
     int nod = CautaNod(g, last[nodCurent]);
+
     NumarParcurgeri(nod, last, nrDrMin, g);
 }
 
 TMuchie* SalveazaMuchiiDrumuriMinime(TGL *graf, char **last)
+// creeaza un vector cu toate muchiile parcurse in drumurile minime
 {
     int i;
     TMuchie *muchii = (TMuchie *)calloc(graf->n, sizeof(TMuchie));
@@ -518,6 +544,8 @@ TMuchie* SalveazaMuchiiDrumuriMinime(TGL *graf, char **last)
 }
 
 void SortareMuchiiDesc(TMuchie *muchii, int *nrDrMin, int *distante, int *ordine, char **last, int nr)
+// sorteaza muchiile descrescator dupa numarul de parcurgeri in cadrul drumurilor minime
+// daca numarul de parcurgeri este egal, sorteaza muchiile crescator dupa distantele drumurilor minime
 {
     int i, j;
     for (i = 0; i < nr - 1; i++) {
@@ -570,6 +598,8 @@ void SortareMuchiiDesc(TMuchie *muchii, int *nrDrMin, int *distante, int *ordine
 }
 
 void SortareMuchiiCresc(TMuchie *muchii, char **last, int *ordine, int nr)
+// sorteaza muchiile crescator dupa numarul de ordine
+// ca sa le afisez in ordinea in care apar in input
 {
     int i, j;
     for (i = 0; i < nr - 1; i++) {

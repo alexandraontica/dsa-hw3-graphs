@@ -20,6 +20,7 @@ int main(int argc, char *argv[])
     }
     
     if (argc == 1) {
+        // nu exista niciun parametru in linia de comanda
         printf("Rulati din nou, specificand numarul cerintei de rezolvat!\n");
         CloseFiles(fin, fout);
         return 0;
@@ -40,6 +41,7 @@ int main(int argc, char *argv[])
 
         int i;
         for (i = 0; i < R; i++) {
+            // citesc si adaug ruta curenta in graf:
             int rez = AdaugaRuta(1, fin, graf, i);
             if (!rez) {
                 DistrG(&graf);
@@ -48,8 +50,11 @@ int main(int argc, char *argv[])
             }
         }
 
+        // modific gradele de afectare:
         ModificaGradAfectare(graf, K);
 
+        // creez un vector de rute concomitent cu un vector de orase:
+        // (vectorul de orase retine orasul de start al fiecarei rute)
         AArc *rute = (AArc *)calloc(R, sizeof(AArc));
         if (!rute) {
             DistrG(&graf);
@@ -90,8 +95,11 @@ int main(int argc, char *argv[])
             }
         }
 
+        // sortez rutele dupa numarul de ordine ca sa le afisez
+        // in ordinea in fisierul de intrare:
         SortareRute(rute, orase, R);
 
+        // afisare rute:
         for (i = 0; i < R; i++) {
             fprintf(fout, "%s %s ", orase[i], rute[i]->destinatie);
             fprintf(fout, "%d ", rute[i]->nr_costuri);
@@ -103,8 +111,10 @@ int main(int argc, char *argv[])
             fprintf(fout, "\n");
         }
 
+        // determin si afisez indicii rutelor care pot fi pastrate:
         PastreazaRute(fout, rute, L, R);
 
+        // eliberez memoria alocata:
         for(i = 0; i < R; i++) {
             free(orase[i]);
         }
@@ -114,6 +124,7 @@ int main(int argc, char *argv[])
         DistrG(&graf);
     } else if (!strcmp(argv[1], "2")) {
         // cerinta 2
+
         TGL *graf = AlocG();
         if (!graf) {
             CloseFiles(fin, fout);
@@ -128,6 +139,7 @@ int main(int argc, char *argv[])
 
         int i;
         for (i = 0; i < M; i++) {
+            // citesc si adaug ruta curenta in graf:
             int rez = AdaugaRuta(2, fin, graf, i);
             if (!rez) {
                 DistrG(&graf);
@@ -136,6 +148,7 @@ int main(int argc, char *argv[])
             }
         }
 
+        // determin pozitia nodului de start in graf:
         int nodStart = CautaNod(graf, start); 
 
         char **last = (char **)calloc(graf->n, sizeof(char *));
@@ -147,6 +160,7 @@ int main(int argc, char *argv[])
             return 0;
         }
 
+        // calculez distantele minime de la nodul de start la fiecare nod din graf:
         int *distante = Dijkstra(graf, nodStart, last);
         if (!distante) {
             DistrLast(&last, graf->n);
@@ -164,10 +178,13 @@ int main(int argc, char *argv[])
             return 0;
         }
 
+        // numar in nrDrMin de cate ori se trece prin fiecare muchie cand se
+        // parcurg toate drumurile minime:
         for (i = 0; i < graf->n; i++) {
             NumarParcurgeri(i, last, nrDrMin, graf);
         }
 
+        // creez un vector cu muchiile parcurse in cadrul drumurilor minime:
         TMuchie *muchii = SalveazaMuchiiDrumuriMinime(graf, last);
         if (!muchii) {
             free(nrDrMin);
@@ -188,6 +205,7 @@ int main(int argc, char *argv[])
             CloseFiles(fin, fout);
             return 0;
         }
+        // vectorul ordine retine numarul de ordine al muchiilor in fisierul de input
 
         for (i = 0; i < graf->n; i++) {
             if (last[i]) {
@@ -201,8 +219,10 @@ int main(int argc, char *argv[])
             }
         }
 
+        // sorteaza muchiile descrescator dupa numarul de parcurgeri in cadrul drumurilor minime
         SortareMuchiiDesc(muchii, nrDrMin, distante, ordine, last, graf->n);
 
+        // numar cate muchii sunt parcurse in cadrul drumurilor minime:
         int nrRute = 0;
         for (i = 0; i < graf->n; i++) {
             if (last[i]) {
@@ -210,6 +230,7 @@ int main(int argc, char *argv[])
             }
         }
         
+        // determin cate rute/muchii voi afisa si afisez acest numar:
         if (nrRute < K) {
             K = nrRute;
             fprintf(fout, "%d\n", K);
@@ -217,8 +238,11 @@ int main(int argc, char *argv[])
             fprintf(fout, "%d\n", K);
         }
 
+        // sortez muchiile crescator dupa numarul de ordine
+        // ca sa le afisez in ordinea in care apar in input:
         SortareMuchiiCresc(muchii, last, ordine, K);
 
+        // afisez muchiile:
         for (i = 0; i < K; i++) {
             if (last[i]) {
                 fprintf(fout, "%s %s\n", muchii[i].start, muchii[i].destinatie);
