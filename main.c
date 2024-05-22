@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        // modific gradele de afectare:
+        // modific gradele de afectare in K ani:
         ModificaGradAfectare(graf, K);
 
         // creez un vector de rute concomitent cu un vector de orase:

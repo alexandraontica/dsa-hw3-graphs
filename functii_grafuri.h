@@ -9,13 +9,13 @@
 #define INT_MAX 2147483647
 
 typedef struct celarc { 
-    char *destinatie;
-    int nr_costuri;
-    float *cost;
-    int *modificat;
-    int input;
-    int nr_ordine;
-    struct celarc *urm;
+    char *destinatie;    // orasul destinatie al rutei
+    int nr_costuri;      // numarul de tronsoane care compun ruta (task 1)/numar costuri == 1 (task 2)
+    float *cost;         // vector grade afectare (task 1)/costul (task 2)
+    int *modificat;      // -1/0/1 -> daca si cum a fost gradul de afectare modificat (task 1)
+    int input;           // 0/1 -> arcul se afla sau nu in fisierul de input 
+    int nr_ordine;       // a cata ruta este in fisierul de intrare
+    struct celarc *urm;  // adresa urmatorul adiacent
 } TCelArc, *AArc;
 
 typedef struct {
@@ -44,6 +44,7 @@ int MinNode(TGL *g, int *visited, int *distances);
 int* Dijkstra(TGL *g, int n, char **last);
 void NumarParcurgeri(int nodCurent, char **last, int *nrDrMin, TGL *g);
 TMuchie* SalveazaMuchiiDrumuriMinime(TGL *graf, char **last);
+void Swap(int i, int j, int *nrDrMin, TMuchie *muchii, int *distante, int *ordine, char **last);
 void SortareMuchiiDesc(TMuchie *muchii, int *nrDrMin, int *distante, int *ordine, char **last, int nr);
 void SortareMuchiiCresc(TMuchie *muchii, char **last, int *ordine, int nr);
 void DistrArc(AArc arc);

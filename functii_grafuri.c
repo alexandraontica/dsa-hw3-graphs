@@ -61,7 +61,7 @@ AArc AlocArc(int nr, char *dest)
     arc->input = 0;
     // input retine daca muchia face parte din fisierul de input:
     // de ex, daca citesc Londra-Paris, pentru muchia cu startul in Londra si 
-    // destinatia in Parit input o sa fie 1;
+    // destinatia in Paris input o sa fie 1;
     // pentru aceeasi muchie, dar adaugata in lista de adiacenta a nodului Paris,
     // (startul in Paris si destinatia in Londra), input o sa fie 0;
     // modific valoarea lui input in afara functiei de alocare
@@ -221,7 +221,7 @@ void ModificaGradAfectare(TGL *g, int K)
     // de fiecare data cand modific un tronson, 
     // marchez acest lucru in campul modificat (vector) al arcului 
 
-    // legenda camp modificat[j]:
+    // legenda l->modificat[j]:
     // daca valoarea este 0, tronsonul nu a fost modificat, 
     // daca este 1, valoarea i-a fost deja dublata, 
     // daca este -1, era 0 inainte si valoarea i-a fost actualizata
@@ -309,7 +309,7 @@ void ModificaGradAfectare(TGL *g, int K)
                             l->cost[j] = max / 2;
                             l->modificat[j] = -1;
                         } else if (j == 0) {
-                            // transonul este primul in ruta;
+                            // tronsonul este primul in ruta;
                             // vecinul din dreapta se afla pe aceeasi ruta,
                             // restul vecinilor sunt primele tronsoane de pe
                             // muchiile incidente nodului de start
@@ -498,6 +498,8 @@ TMuchie* SalveazaMuchiiDrumuriMinime(TGL *graf, char **last)
     }
 
     for (i = 0; i < graf->n; i++) {
+        // daca last[i] e NULL, pe pozitia i in graf se afla nodul de unde se porneste
+        // (ca sa se ajunga la el nu este parcursa nicio muchie)
         if (last[i]) {
             int esteInput = 0;
             AArc l;
@@ -511,6 +513,7 @@ TMuchie* SalveazaMuchiiDrumuriMinime(TGL *graf, char **last)
             }
 
             if (esteInput) {
+                // muchia se gaseste asa cum este in fisierul de intrare
                 muchii[i].start = strdup(graf->src[i]);
                 if (!muchii[i].start) {
                     free(muchii);
@@ -524,6 +527,7 @@ TMuchie* SalveazaMuchiiDrumuriMinime(TGL *graf, char **last)
                     return NULL;
                 }
             } else {
+                // muchia se gaseste "invers" in fisierul de intrare
                 muchii[i].start = strdup(last[i]);
                 if (!muchii[i].start) {
                     free(muchii);
@@ -543,6 +547,30 @@ TMuchie* SalveazaMuchiiDrumuriMinime(TGL *graf, char **last)
     return muchii;
 }
 
+void Swap(int i, int j, int *nrDrMin, TMuchie *muchii, int *distante, int *ordine, char **last)
+// interschimba elementele de pe pozitiile i si j din toti vectorii primiti ca parametru
+{
+    int aux1 = nrDrMin[i];
+    nrDrMin[i] = nrDrMin[j];
+    nrDrMin[j] = aux1;
+
+    TMuchie aux2 = muchii[i];
+    muchii[i] = muchii[j];
+    muchii[j] = aux2;
+
+    aux1 = distante[i];
+    distante[i] = distante[j];
+    distante[j] = aux1;
+
+    aux1 = ordine[i];
+    ordine[i] = ordine[j];
+    ordine[j] = aux1;
+
+    char *aux3 = last[i];
+    last[i] = last[j];
+    last[j] = aux3;
+}
+
 void SortareMuchiiDesc(TMuchie *muchii, int *nrDrMin, int *distante, int *ordine, char **last, int nr)
 // sorteaza muchiile descrescator dupa numarul de parcurgeri in cadrul drumurilor minime
 // daca numarul de parcurgeri este egal, sorteaza muchiile crescator dupa distantele drumurilor minime
@@ -551,46 +579,10 @@ void SortareMuchiiDesc(TMuchie *muchii, int *nrDrMin, int *distante, int *ordine
     for (i = 0; i < nr - 1; i++) {
         for (j = i + 1; j < nr; j++) {
             if (nrDrMin[i] < nrDrMin[j]) {
-                int aux1 = nrDrMin[i];
-                nrDrMin[i] = nrDrMin[j];
-                nrDrMin[j] = aux1;
-
-                TMuchie aux2 = muchii[i];
-                muchii[i] = muchii[j];
-                muchii[j] = aux2;
-
-                aux1 = distante[i];
-                distante[i] = distante[j];
-                distante[j] = aux1;
-
-                aux1 = ordine[i];
-                ordine[i] = ordine[j];
-                ordine[j] = aux1;
-
-                char *aux3 = last[i];
-                last[i] = last[j];
-                last[j] = aux3;
+                Swap(i, j, nrDrMin, muchii, distante, ordine, last);
             } else if (nrDrMin[i] == nrDrMin[j]) {
                 if (distante[i] > distante[j]) {
-                    int aux1 = nrDrMin[i];
-                    nrDrMin[i] = nrDrMin[j];
-                    nrDrMin[j] = aux1;
-
-                    TMuchie aux2 = muchii[i];
-                    muchii[i] = muchii[j];
-                    muchii[j] = aux2;
-
-                    aux1 = distante[i];
-                    distante[i] = distante[j];
-                    distante[j] = aux1;
-
-                    aux1 = ordine[i];
-                    ordine[i] = ordine[j];
-                    ordine[j] = aux1;
-
-                    char *aux3 = last[i];
-                    last[i] = last[j];
-                    last[j] = aux3;
+                    Swap(i, j, nrDrMin, muchii, distante, ordine, last);
                 }
             }
         }
