@@ -2,15 +2,6 @@
 
 # Tema 3 - Grafuri
 
-**Punctaj local : *108 puncte***
-
-**Rezultat checker:**
-- Cerința 1 : 45.0/45p
-- Cerința 2 : 40.0/50p
-- README : 5.0/5p
-- BONUS VALGRIND : 18.0/20p
-- Punctajul Acumulat este: 108.0/120p!
-
 ## Constructie graf
 Am alocat un pointer de tip TGL, i-am setat numarul de noduri la 0 si campurile vectori (cel de etichete - src - si cel de adrese liste arce - v) la NULL. Pe acestea le realoc de fiecare data cand adaug un nod nou. Am citit numarul de rute si fiecare ruta in parte. Pentru fiecare ruta am verificat daca exista deja in graf orasele de start si destinatie. Daca nu, le-am adaugat in graf (am creat nod/uri nou/noi). Am alocat apoi cate un arc pentru fiecare ruta si i-am populat campurile cu informatiile corespunzatoare. Am adaugat apoi noile arce la finalul listelor ce corespund oraselor de start ale fiecarei rute.
 
